@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sensor_learning"
+version = "0.0.1"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Luke Strohbehn", email = "luke.strohbehn@gmail.com" },
+]
+maintainers = [
+    { name = "Luke Strohbehn", email = "luke.strohbehn@gmail.com" },
+]
+description = "Package for pybullet-tree-sim integration for optimizing tree scanning"
+requires-python = ">=3.9"
+dependencies = [
+    "black",
+    "numpy==1.26.4",
+    "plotly",
+    "pybullet==3.2.6",
+    "pyrender",
+    "pytest",
+    "pyyaml",
+    "trimesh",
+]
