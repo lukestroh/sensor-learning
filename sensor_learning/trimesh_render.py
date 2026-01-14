@@ -7,7 +7,7 @@ import pyrender
 import numpy as np
 import os
 
-import open3d as o3d
+# import open3d as o3d
 
 
 class RenderScene:
@@ -28,60 +28,6 @@ class RenderScene:
 
         # Renderer
         self.renderer = None
-        return
-
-    @staticmethod
-    def load_mesh(mesh_path: str) -> trimesh.Trimesh:
-        """Load a mesh from a path
-
-        :param mesh_path: Mesh path
-        :type mesh_path: str
-        :return: Trimesh object of the mesh
-        :rtype: trimesh.Trimesh
-        """
-        mesh = trimesh.load(mesh_path, process=False)  # process=False keeps vertex sharing as in file
-        return mesh
-
-    @staticmethod
-    def recolor_mesh(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
-        """Duplicate vertices per-face so each face can get a flat color (no vertex-sharing)
-        This ensures a unique set of vertices per triangle so color doesn't interpolate across adjacent faces.
-
-        :param mesh: Trimesh object
-        :type mesh: trimesh.Trimesh
-        :return: A recolored trimesh object
-        :rtype: trimesh.Trimesh
-        """
-        faces = mesh.faces
-        n_faces = faces.shape[0]
-        verts_per_face = mesh.vertices[faces]  # shape (n_faces, 3, 3)
-        new_vertices = verts_per_face.reshape(-1, 3)  # (n_faces*3, 3)
-        new_faces = np.arange(len(new_vertices)).reshape(-1, 3)  # (n_faces, 3)
-
-        # Encode face IDs into 24-bit RGB colors (reserve a background id 0 if you like)
-        ids = np.arange(n_faces, dtype=np.uint32)
-        r = (ids >> 16) & 0xFF
-        g = (ids >> 8) & 0xFF
-        b = ids & 0xFF
-        face_colors = np.stack([r, g, b, np.full_like(r, 255)], axis=1).astype(np.uint8)  # RGBA per-face
-
-        # Because we duplicated vertices (3 per face), create per-vertex colors by repeating each face color 3x
-        vertex_colors = np.repeat(face_colors, 3, axis=0)  # shape (n_faces*3, 4)
-
-        # Make a new trimesh with per-vertex colors
-        recolored_mesh = trimesh.Trimesh(
-            vertices=new_vertices, faces=new_faces, vertex_colors=vertex_colors, process=False
-        )
-        return recolored_mesh
-
-    @staticmethod
-    def export_obj(
-        mesh: trimesh.Trimesh,
-        filename: str,
-        dir_path: str = f"{MESHES_PATH}/tmp",
-    ) -> None:
-        export_path = os.path.join(dir_path, filename)
-        mesh.export(f"{export_path}", file_type="obj")
         return
 
     def add_camera(
@@ -190,11 +136,11 @@ class RenderScene:
 
 
 def main():
+    from sensor_learning.mesh_objects import MeshObjects
     __here__ = os.path.dirname(os.path.dirname(__file__))
     mesh_path = f"{__here__}/meshes/trees/LPy_envy_00000.ply"
-    mesh = RenderScene.load_mesh(mesh_path=mesh_path)
-    color_mesh = RenderScene.recolor_mesh(mesh=mesh)
-    RenderScene.export_obj(mesh=color_mesh, filename="test.obj")
+    color_mesh = MeshObjects.color_unique_faces(mesh_path=mesh_path)
+    MeshObjects.export_obj(mesh=color_mesh, filename="test.obj")
     RenderScene.render_visual(color_mesh)
     return
 
