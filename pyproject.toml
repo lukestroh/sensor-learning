@@ -2,6 +2,9 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project]
 name = "sensor_learning"
 version = "0.0.1"
@@ -24,4 +27,5 @@ dependencies = [
     "pytest",
     "pyyaml",
     "trimesh",
+    "pybullet_tree_sim @ file:///home/luke/dev/pybullet/pybullet-tree-sim"
 ]
