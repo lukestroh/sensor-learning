@@ -3,9 +3,10 @@ import os
 import logging
 import logging.config
 
-PKG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PKG_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LOG_DIR = os.path.join(PKG_DIR, "log")
 LOG_FILE = os.path.join(LOG_DIR, "sensor_learning.log")
+
 
 class ColorFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors"""
@@ -30,8 +31,7 @@ class ColorFormatter(logging.Formatter):
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
-    
-    
+
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -75,8 +75,6 @@ LOGGING_CONFIG = {
     },
 }
 
-
-    
 
 def setup_logging():
     os.makedirs(LOG_DIR, exist_ok=True)

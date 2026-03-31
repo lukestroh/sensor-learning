@@ -137,6 +137,7 @@ class RenderScene:
 
 def main():
     from sensor_learning.mesh_objects import MeshObjects
+
     __here__ = os.path.dirname(os.path.dirname(__file__))
     mesh_path = f"{__here__}/meshes/trees/LPy_envy_00000.ply"
     color_mesh = MeshObjects.color_unique_faces(mesh_path=mesh_path)

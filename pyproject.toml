@@ -20,6 +20,7 @@ description = "Package for pybullet-tree-sim integration for optimizing tree sca
 requires-python = ">=3.9"
 dependencies = [
     "black",
+    "h5py",
     "numpy==1.26.4",
     "plotly",
     "pybullet==3.2.6",
