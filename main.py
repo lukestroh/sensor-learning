@@ -6,7 +6,9 @@ import time
 from typing import TYPE_CHECKING
 
 import numpy as np
+from pybullet_tree_sim.tree_metadata import Cylinder
 import pybullet_tree_sim.utils.rotation_utils as ru
+import tqdm
 from pybullet_tree_sim.pruning_environment import PruningEnv
 from pybullet_tree_sim.robot import Robot
 from pybullet_tree_sim.sensors.sensor_types import DataType, Modality, SensorType
@@ -87,10 +89,10 @@ def main():
     x_range = (-0.2, 0.2)  # these poses are relative to the robot base
     y_range = (0.1, 0.8)
     z_range = (1.0, 1.6)
-    theta_range = (0, 0)  # limit to fixed orientation for now
-    phi_range = (0, 0)
-    points_per_axis = 5
-    angles_per_axis = 1
+    theta_range = (-np.pi / 4, np.pi / 4)  # limit to fixed orientation for now
+    phi_range = (-np.pi / 4, np.pi / 4)
+    points_per_axis = 10
+    angles_per_axis = 10
     discrete_poses = pg.generate_discrete_poses(
         x_range=x_range,  # these poses are relative to the robot base
         y_range=y_range,
@@ -102,14 +104,44 @@ def main():
         start_orientation=start_ori,
     )
 
+    # Faces
+    faces_keys = ["color", "cylinder_id", "id", "id_a", "normal", "t_val", "theta", "vertices"]
+    faces = [f.to_dict() for f in tree.faces]
+    zipped_faces = zip(*[[face[key] for key in faces_keys] for face in faces])
+    dtypes = (np.int32, np.int32, np.int32, np.int32, np.float32, np.float32, np.float32, np.float32)
+    faces_dict = {k: np.array(list(v), dtype=d) for k, v, d in zip(faces_keys, zipped_faces, dtypes)}
+
+    # Cylinders
+    cylinder_keys = [
+        "centroid",
+        "color",
+        "cylinder_id",
+        "length",
+        "limb_id",
+        "limb_name",
+        "orientation",
+        "radius",
+        "rot_mat",
+    ]
+    cylinders = [cyl.to_dict() for cyl in tree.cylinders]
+    zipped_cylinders = zip(*[[cyl[key] for key in cylinder_keys] for cyl in cylinders])
+    dtypes = (np.float32, np.int32, np.int32, np.float32, np.int32, np.str_, np.float32, np.float32, np.float32)
+    cylinders_dict = {k: np.array(list(v), dtype=d) for k, v, d in zip(cylinder_keys, zipped_cylinders, dtypes)}
+
+    # Limbs
+    limb_keys = ["children", "cylinders", "start_point", "end_point", "limb_id", "name"]
+    limbs = [limb.to_dict() for limb in tree.limbs.values()]
+    limbs_dict = {k: [limb[k] for limb in limbs] for k in limb_keys}
+
+    # Sensors
     sensors_dict = {}
     for sensor_name, sensor in robot.sensors.items():
         sensors_dict[sensor_name] = {
             "type": sensor.sensor_type,
             "data_type": sensor.data_type.value,
-            "intrinsics": sensor.optical_intrinsics
-            if sensor.data_type in {DataType.RGB, DataType.DEPTH, DataType.RGBD}
-            else None,
+            "intrinsics": (
+                sensor.optical_intrinsics if sensor.data_type in {DataType.RGB, DataType.DEPTH, DataType.RGBD} else None
+            ),
             "extrinsics": [],
             "mode": {
                 mode.value: {
@@ -123,8 +155,13 @@ def main():
 
     trial_data = {
         "trial_name": f"{tree.id_str}_{time.strftime('%Y%m%d-%H%M%S')}",
-        "tree_id": tree.id_str,
-        "tree_type": tree.tree_type,
+        "tree": {
+            "tree_id": tree.id_str,
+            "tree_type": tree.tree_type,
+            "faces": faces_dict,
+            "cylinders": cylinders_dict,
+            "limbs": limbs_dict,
+        },
         "sim_steps": np.linspace(start=0, stop=len(discrete_poses) - 1, num=len(discrete_poses), dtype=int),
         "time_step_interval": pbutils.time_step_interval,
         "sensors": sensors_dict,
@@ -149,7 +186,7 @@ def main():
     }
     # logger.debug(pp.pformat(trial_data))
 
-    for i, pose in enumerate(discrete_poses):
+    for i, pose in enumerate(tqdm.tqdm(discrete_poses)):
         pbutils.pbclient.stepSimulation()
         robot.reset_robot()
         pbutils.pbclient.stepSimulation()
@@ -166,21 +203,34 @@ def main():
         # Read sensors, update pyrender scene sensor poses, render
         for sensor_name, sensor in robot.sensors.items():
             for mode in sensor.modalities:
+                pbutils.pbclient.stepSimulation()
                 pyb_sensor_data = sensor.read(robot=robot, pbclient=pbutils.pbclient, mode=mode)
+                sensor_extrinsics = np.asarray(pyb_sensor_data["extrinsic_matrix"]).reshape((4, 4), order="F")
+                pyr_scene.update_sensor_pose(sensor=sensor, pose=np.linalg.inv(sensor_extrinsics))
+                pyr_sensor_data = pyr_scene.render_optical_sensor(sensor=sensor)
+                # logger.debug(pp.pformat(pyr_sensor_data))
                 # logger.debug(pp.pformat(pyb_sensor_data))
                 trial_data["sensors"][sensor_name]["extrinsics"].append(pyb_sensor_data["extrinsic_matrix"])
-                trial_data["sensors"][sensor_name]["mode"][mode.value]["rgb"].append(
-                    pyb_sensor_data["data"][0]
-                ) if mode in {Modality.RGB, Modality.DEPTH} else None
-                trial_data["sensors"][sensor_name]["mode"][mode.value]["depth"].append(
-                    pyb_sensor_data["data"][1]
-                ) if mode in {Modality.DEPTH, Modality.DEPTH} else None
-                trial_data["sensors"][sensor_name]["mode"][mode.value]["pointcloud"].append(
-                    pyb_sensor_data["pointcloud"]
-                ) if mode == Modality.POINTCLOUD else None
+                (
+                    trial_data["sensors"][sensor_name]["mode"][mode.value]["rgb"].append(
+                        pyr_sensor_data[mode.value]["rgb"]
+                    )
+                    if mode in {Modality.RGB, Modality.DEPTH}
+                    else None
+                )
+                (
+                    trial_data["sensors"][sensor_name]["mode"][mode.value]["depth"].append(pyb_sensor_data["data"][1])
+                    if mode in {Modality.DEPTH, Modality.DEPTH}
+                    else None
+                )
+                (
+                    trial_data["sensors"][sensor_name]["mode"][mode.value]["pointcloud"].append(
+                        pyb_sensor_data["pointcloud"]
+                    )
+                    if mode == Modality.POINTCLOUD
+                    else None
+                )
 
-    # logger.info(trial_data)
-    # save pose, color, depth
     save_path = slu.save_trial_data(trial_data=trial_data)
     logger.info(f"Saved data to {save_path}")
 
