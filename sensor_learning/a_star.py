@@ -20,52 +20,6 @@ class AStarPlanner:
         self.alpha = alpha
         self.beta = beta
 
-        """sensors_dict = {}
-        for sensor_name, sensor in robot.sensors.items():
-            sensors_dict[sensor_name] = {
-                "type": sensor.sensor_type,
-                "data_type": sensor.data_type.value,
-                "intrinsics": sensor.optical_intrinsics
-                if sensor.data_type in {DataType.RGB, DataType.DEPTH, DataType.RGBD}
-                else None,
-                "extrinsics": [],
-                "mode": {
-                    mode.value: {
-                        "rgb": [] if mode in {Modality.RGB, Modality.DEPTH} else None,
-                        "depth": [] if mode in {Modality.RGB, Modality.DEPTH} else None,
-                        "pointcloud": [] if mode == Modality.POINTCLOUD else None,
-                    }
-                    for mode in sensor.modalities
-                },
-            }
-    
-        trial_data = {
-            "trial_name": f"{tree.id_str}_{time.strftime('%Y%m%d-%H%M%S')}",
-            "tree_id": tree.id_str,
-            "tree_type": tree.tree_type,
-            "sim_steps": np.linspace(start=0, stop=len(discrete_poses) - 1, num=len(discrete_poses), dtype=int),
-            "time_step_interval": pbutils.time_step_interval,
-            "sensors": sensors_dict,
-            "eef_poses": {
-                "generated": {
-                    "poses": discrete_poses,
-                    "x_range": x_range,
-                    "y_range": y_range,
-                    "z_range": z_range,
-                    "theta_range": theta_range,
-                    "phi_range": phi_range,
-                    "points_per_axis": points_per_axis,
-                    "angles_per_axis": angles_per_axis,
-                    "start_position": start_pos,
-                    "start_orientation": start_ori,
-                },
-                "actual": {
-                    "position": [],
-                    "orientation": [],
-                },
-            },
-        }"""
-
         self.sensors_dict = {}
 
         # Load data from h5 file TODO: add tree metadata (faces, etc) to file.
